@@ -35,6 +35,8 @@ enum color team;
 enum color dont_disp;
 enum color dont_disp_last;
 
+bool plus_mode;
+
 //++color
 color& operator++(color& orig)
 {
@@ -87,6 +89,11 @@ byte disp_seg[11] = {
   0b01111111
 };
 
+byte pm_seg[2] = {
+  0b00100010,
+  0b01101111,
+};
+
 byte disp_index[10] = {
   0b00000000, //0
   0b10000000, //1
@@ -134,6 +141,8 @@ void setup() {
   count = 0;
   led_timer = millis();
   led_reset = false;
+
+  plus_mode = false;
   
   team = RED;
   dont_disp = NONE;
@@ -154,11 +163,11 @@ void setup() {
 
 void loop() 
 {
-  //disp scores
-  disp_score(GREEN); 
-  disp_score(RED); 
-  disp_score(GREEN); 
+  //disp scores 
+  disp_score(RED);  
   disp_score(BLUE); 
+  disp_score(GREEN);
+  disp_score(GREEN);
   disp_score(GREEN);
   
   //check pin_a vs last_a
@@ -218,6 +227,13 @@ void loop()
     {
       team_score[team] = prev_score[team];
     }
+    B_TIMER = millis();
+  }
+  //enable or disable plus mode
+  if(digitalRead(BUT_M) == HIGH && (millis() - B_TIMER > 500))
+  {
+    //enable or disable plus mode
+    plus_mode = !plus_mode;
     B_TIMER = millis();
   }
   //2/3 player mode
@@ -309,64 +325,121 @@ void reset_leds()
   }
   FastLED.show();
 }
+void disp_plus_score()
+{
+  int score = team_score[team] - prev_score[team];
+  bool pm = score < 0;
+  if(team == RED)
+  {
+    //disp 100's place
+    disp_num(pm_seg[pm], 1);
+
+    //disp 1's place
+    disp_num(disp_seg[abs(score%10)], 3);
+    score -= score%10; 
+    
+    if(abs(score / 10) >= 1)
+    {
+      //disp 10's place
+      disp_num(disp_seg[abs((score%100)/10)], 2);
+      score -= score%100;
+    }
+  }
+  if(team == GREEN)
+    {
+      //disp 100's place
+      disp_num(pm_seg[pm], 4);
+      
+      //disp 1's place
+      disp_num(disp_seg[abs(score%10)], 6);
+      score -= score%10;
+      if(abs(score / 10) >= 1)
+      {
+        //disp 10's place
+        disp_num(disp_seg[abs((score%100))/10], 5);
+        score -= score%100;
+      }   
+    }
+    if(team == BLUE)
+    {
+      //disp 100's place
+      disp_num(pm_seg[pm], 7);
+      
+      //disp 1's place
+      disp_num(disp_seg[abs(score%10)], 9);
+      score -= score%10;
+      if(abs(score / 10) >= 1)
+      {
+        //disp 10's place
+        disp_num(disp_seg[abs((score%100)/10)], 8);
+        score -= score%100;
+      }
+    }
+}
 void disp_score(color c_team)
 {
-  int score = team_score[c_team];
-  if(c_team == RED && dont_disp != RED)
+  if(dont_disp != c_team)
   {
-    //disp 1's place
-    disp_num(score%10, 3);
-    score -= score%10;
-    if(score / 10 >= 1)
+    int score = team_score[c_team];
+    if(plus_mode && c_team == team)
     {
-      //disp 10's place
-      disp_num((score%100)/10, 2);
-      score -= score%100;
+      disp_plus_score();
     }
-    if(score / 100 >= 1)
+    else if(c_team == RED)
     {
+      //disp 1's place
+      disp_num(disp_seg[score%10], 3);
+      score -= score%10;
+      if(score / 10 >= 1)
+      {
+        //disp 10's place
+        disp_num(disp_seg[(score%100)/10], 2);
+        score -= score%100;
+      }
       //disp 100's place
-      disp_num(1, 1);
+      if(score / 100 >= 1)
+      {
+        disp_num(disp_seg[1], 1);
+      }
     }
-  }
-  if(c_team == GREEN && dont_disp != GREEN)
-  {
-    //disp 1's place
-    disp_num(score%10, 6);
-    score -= score%10;
-    if(score / 10 >= 1)
+    else if(c_team == GREEN)
     {
-      //disp 10's place
-      disp_num((score%100)/10, 5);
-      score -= score%100;
+      //disp 1's place
+      disp_num(disp_seg[score%10], 6);
+      score -= score%10;
+      if(score / 10 >= 1)
+      {
+        //disp 10's place
+        disp_num(disp_seg[(score%100)/10], 5);
+        score -= score%100;
+      }
+      if(score / 100 >= 1)
+      {
+        //disp 100's place
+        disp_num(disp_seg[1], 4);
+      }
     }
-    if(score / 100 >= 1)
+    else if(c_team == BLUE)
     {
-      //disp 100's place
-      disp_num(1, 4);
-    }
-  }
-  if(c_team == BLUE && dont_disp != BLUE)
-  {
-    //disp 1's place
-    disp_num(score%10, 9);
-    score -= score%10;
-    if(score / 10 >= 1)
-    {
-      //disp 10's place
-      disp_num((score%100)/10, 8);
-      score -= score%100;
-    }
-    if(score / 100 >= 1)
-    {
-      //disp 100's place
-      disp_num(1, 7);
+      //disp 1's place
+      disp_num(disp_seg[score%10], 9);
+      score -= score%10;
+      if(score / 10 >= 1)
+      {
+        //disp 10's place
+        disp_num(disp_seg[(score%100)/10], 8);
+        score -= score%100;
+      }
+      if(score / 100 >= 1)
+      {
+        //disp 100's place
+        disp_num(disp_seg[1], 7);
+      }
     }
   }
 }
-void disp_num(int num, int index)
+void disp_num(byte seg, int index)
 {
-  byte seg = disp_seg[num];
   if(index == 3)
   {
     seg |= 0b10000000;
