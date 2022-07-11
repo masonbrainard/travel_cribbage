@@ -16,6 +16,9 @@ CRGB leds[LED_NUM];
 #define PIN_B 6
 #define PIN_S 5
 
+int dial_brightness[6] = {40, 20, 10, 5, 2, 1};
+int dial_index;
+
 int a, b, last_a;
 
 long int S_TIMER;
@@ -25,13 +28,19 @@ long int S_TIMER;
 #define BUT_M 9
 #define BUT_R 10
 
+long int B_TIMER;
+
 enum color {RED, GREEN, BLUE};
 enum color team;
+
+int prev_score[3];
 int team_score[3];
 
-//state machine
-enum SM {WAIT, SCORE, NEXT};
-enum SM state;
+enum dir {CW, CCW};
+enum dir cur_dir;
+int count;
+long int led_timer;
+bool led_reset;
 
 byte disp_seg[11] = {
   0b00010000,
@@ -58,11 +67,10 @@ byte disp_index[10] = {
   0b00100000, //7
   0b00010000, //8
   0b00001000, //9
-    
 };
 
 int timer;
-int count;
+
 
 void setup() {
   Serial.begin(9600);
@@ -83,7 +91,8 @@ void setup() {
   pinMode(PIN_S, INPUT_PULLUP);
 
   S_TIMER = millis();
-
+  B_TIMER = millis();
+  
   last_a = digitalRead(PIN_A);
 
   //buttons
@@ -93,91 +102,157 @@ void setup() {
 
   timer = millis();
   count = 0;
+  led_timer = millis();
+  led_reset = false;
   team = RED;
+
+  prev_score[0] = 0;
+  prev_score[1] = 0;
+  prev_score[2] = 0;
+  
   team_score[0] = 0;
   team_score[1] = 0;
   team_score[2] = 0;
 
-  state = WAIT;
+  dial_index = 0;
+
+  Serial.println("Setup Complete");
 }
 
 void loop() 
 {
+  //disp scores
+  disp_score(GREEN); 
+  disp_score(RED); 
+  disp_score(GREEN); 
+  disp_score(BLUE); 
+  disp_score(GREEN);
   
-  //wait
-  while(state == WAIT)
+  //check pin_a vs last_a
+  if(((a = digitalRead(PIN_A)) != last_a) && (a == 1))
   {
-    //display all scores
-    disp_score(GREEN); 
-    disp_score(RED); 
-    disp_score(GREEN); 
-    disp_score(BLUE); 
-    disp_score(GREEN); 
-    //check pin_a vs last_a
-    if(((a = digitalRead(PIN_A)) != last_a) && (a == 1))
+    if((b = digitalRead(PIN_B)) != a)
     {
-      if((b = digitalRead(PIN_B)) != a)
+      //cw
+      cur_dir = CW;
+      if(team_score[team] < 121)
       {
-        //cw
-        Serial.println("->");
         team_score[team]++;
-      }
-      else
-      {
-        //ccw
-        Serial.println("<-");
-        if(team_score[team] > 0)
-        {
-          team_score[team]--;
-        }
+        cycle_leds(++count);
+        led_timer = millis();
+        led_reset = true;
       }
     }
-    last_a = a;
-    //check pin_s
-    if(digitalRead(PIN_S) == HIGH && millis()- S_TIMER > 350)
+    else
     {
-      Serial.println(team);
-      //change to next team
-      if(team == BLUE)
+      //ccw
+      cur_dir = CCW;
+      if(team_score[team] > 0)
       {
-        team = RED;
-        fill_solid(leds, LED_NUM, CRGB(40, 0, 0));
-        FastLED.show();
+        team_score[team]--;
+        cycle_leds(--count);
+        led_timer = millis();
+        led_reset = true;
       }
-      else if(team == RED)
-      {
-        team = GREEN;
-        fill_solid(leds, LED_NUM, CRGB(0, 40, 0));
-        FastLED.show();
-      }
-      else if(team == GREEN)
-      {
-        team = BLUE;
-        fill_solid(leds, LED_NUM, CRGB(0, 0, 40));
-        FastLED.show();
-      }
-      S_TIMER = millis();
     }
-    //check but_l, but_m, but_r
-    //check victory
   }
-    
+  last_a = a;
 
-  //scoring
-    //change relevant score
-    //turn dial leds in relevant direction
-
-  //change team
+  //check dial timer
+  if(led_reset && millis() - led_timer > 1000)
+  {
+    //Serial.println("Reset Leds!");
+    reset_leds();
+    led_reset = false;
+  }
+  //next team
+  if(digitalRead(PIN_S) == HIGH && millis()- S_TIMER > 350)
+  {
     //change to next team
-    //change dial color to team
+    next_team();
+    S_TIMER = millis();
+    prev_score[team] = team_score[team];
+  } 
 
-  //change players
-    //change between 2 and 3 teams
+  //undo (right button)
+  if(digitalRead(BUT_R) == HIGH && (millis() - B_TIMER > 500))
+  {
+    int temp = team_score[team];
+    team_score[team] = prev_score[team];
+    prev_score[team] = temp; 
 
-  //undo
-    //undo last action
+    B_TIMER = millis();
+  }
+  if(digitalRead(BUT_L) == HIGH && (millis - B_TIMER > 500))
+  {
+
+    B_TIMER = millis();
+  }
+
+  //check victory
 }
 
+void next_team()
+{
+  
+  if(team == BLUE)
+  {
+    team = RED;
+    fill_solid(leds, LED_NUM, CRGB(30, 0, 0));
+    FastLED.show();
+  }
+  else if(team == RED)
+  {
+    team = GREEN;
+    fill_solid(leds, LED_NUM, CRGB(0, 30, 0));
+    FastLED.show();
+  }
+  else if(team == GREEN)
+  {
+    team = BLUE;
+    fill_solid(leds, LED_NUM, CRGB(0, 0, 30));
+    FastLED.show();
+  }
+}
+void cycle_leds(int index)
+{
+  int zero = 0;
+  int value = 60;
+  int* r_value = (team == RED ? &value : &zero);
+  int* g_value = (team == GREEN ? &value : &zero);
+  int* b_value = (team == BLUE ? &value : &zero);
+  if(cur_dir == CW)
+  {
+    for(int i = 0; i < LED_NUM; i++)
+    {
+        leds[((i+index)%LED_NUM)] = CRGB(*r_value, *g_value, *b_value);
+        value /= 1.3; 
+    }
+  }
+  else //if CCW
+  {
+    for(int i = LED_NUM; i > 0; i--)
+    {
+        leds[((i+index)%LED_NUM)] = CRGB(*r_value, *g_value, *b_value);
+        value /= 1.3;  
+    }
+  }
+  FastLED.show();
+}
+void reset_leds()
+{
+  int zero = 0;
+  int value = 30;
+  int* r_value = (team == RED ? &value : &zero);
+  int* g_value = (team == GREEN ? &value : &zero);
+  int* b_value = (team == BLUE ? &value : &zero);
+  
+  for(int i = 0; i < LED_NUM; i++)
+  {
+    leds[i] = CRGB(*r_value, *g_value, *b_value);
+  }
+  FastLED.show();
+}
 void disp_score(color c_team)
 {
   int score = team_score[c_team];
