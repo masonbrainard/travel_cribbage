@@ -49,7 +49,20 @@ color operator++(color& orig, int)
   ++orig;
   return rVal;
 }
-
+//--color
+color& operator--(color& orig)
+{
+  if(orig == RED) orig = NONE;
+  orig = static_cast<color>(orig - 1);
+  return orig;
+}
+//color--
+color operator--(color& orig, int)
+{
+  color rVal = orig;
+  --orig;
+  return rVal;
+}
 
 int prev_score[3];
 int team_score[3];
@@ -197,66 +210,63 @@ void loop()
   //undo (right button)
   if(digitalRead(BUT_R) == HIGH && (millis() - B_TIMER > 500))
   {
-    int temp = team_score[team];
-    team_score[team] = prev_score[team];
-    prev_score[team] = temp; 
-
+    if(team_score[team] == prev_score[team])
+    {
+      prev_team();
+    }
+    else
+    {
+      team_score[team] = prev_score[team];
+    }
     B_TIMER = millis();
   }
+  //2/3 player mode
   if(digitalRead(BUT_L) == HIGH && (millis() - B_TIMER > 333))
   {
     //if a team is not being displayed make it be displayed
     if(dont_disp != NONE)
     {
-      Serial.println("3 Player Mode Activated");
       dont_disp_last = dont_disp;
       dont_disp = NONE; 
     }
     //if all teams are 0
     else
     {
-        Serial.println(dont_disp_last);
-        Serial.print("2 Player: No ");
         if((dont_disp_last == BLUE || dont_disp_last == NONE) && team_score[RED] == 0)
         {
           dont_disp = RED;
-          Serial.println("RED");
         }
         else if((dont_disp_last == RED || dont_disp_last == NONE) && team_score[GREEN] == 0)
         {
           dont_disp = GREEN;
-          dont_disp_last = NONE;
-          Serial.println("GREEN");
         }
         else if((dont_disp_last == GREEN || dont_disp_last == NONE) && team_score[BLUE] == 0)
         {
           dont_disp = BLUE;
-          Serial.println("BLUE");
-        }
-        else
-        {
-          Serial.println("Fell Out");
         }
         dont_disp_last = NONE;
         next_team();
     }
     B_TIMER = millis();
   }
-  
-
   //check victory
 }
 
 void next_team()
 {
   team++;
-  if(team == NONE)
-  {
-    team = RED;
-  }
   if(team == dont_disp)
   {
     next_team();
+  }
+  reset_leds();
+}
+void prev_team()
+{
+  team--;
+  if(team == dont_disp)
+  {
+    prev_team();
   }
   reset_leds();
 }
