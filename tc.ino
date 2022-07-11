@@ -30,8 +30,26 @@ long int S_TIMER;
 
 long int B_TIMER;
 
-enum color {RED, GREEN, BLUE};
+enum color {RED, GREEN, BLUE, NONE};
 enum color team;
+enum color dont_disp;
+enum color dont_disp_last;
+
+//++color
+color& operator++(color& orig)
+{
+  orig = static_cast<color>(orig + 1);
+  if(orig == NONE) orig = RED;
+  return orig;
+}
+//color++
+color operator++(color& orig, int)
+{
+  color rVal = orig;
+  ++orig;
+  return rVal;
+}
+
 
 int prev_score[3];
 int team_score[3];
@@ -71,7 +89,6 @@ byte disp_index[10] = {
 
 int timer;
 
-
 void setup() {
   Serial.begin(9600);
 
@@ -104,8 +121,11 @@ void setup() {
   count = 0;
   led_timer = millis();
   led_reset = false;
+  
   team = RED;
-
+  dont_disp = NONE;
+  dont_disp_last = NONE;
+    
   prev_score[0] = 0;
   prev_score[1] = 0;
   prev_score[2] = 0;
@@ -173,7 +193,7 @@ void loop()
     S_TIMER = millis();
     prev_score[team] = team_score[team];
   } 
-
+  
   //undo (right button)
   if(digitalRead(BUT_R) == HIGH && (millis() - B_TIMER > 500))
   {
@@ -183,36 +203,62 @@ void loop()
 
     B_TIMER = millis();
   }
-  if(digitalRead(BUT_L) == HIGH && (millis - B_TIMER > 500))
+  if(digitalRead(BUT_L) == HIGH && (millis() - B_TIMER > 333))
   {
-
+    //if a team is not being displayed make it be displayed
+    if(dont_disp != NONE)
+    {
+      Serial.println("3 Player Mode Activated");
+      dont_disp_last = dont_disp;
+      dont_disp = NONE; 
+    }
+    //if all teams are 0
+    else
+    {
+        Serial.println(dont_disp_last);
+        Serial.print("2 Player: No ");
+        if((dont_disp_last == BLUE || dont_disp_last == NONE) && team_score[RED] == 0)
+        {
+          dont_disp = RED;
+          Serial.println("RED");
+        }
+        else if((dont_disp_last == RED || dont_disp_last == NONE) && team_score[GREEN] == 0)
+        {
+          dont_disp = GREEN;
+          dont_disp_last = NONE;
+          Serial.println("GREEN");
+        }
+        else if((dont_disp_last == GREEN || dont_disp_last == NONE) && team_score[BLUE] == 0)
+        {
+          dont_disp = BLUE;
+          Serial.println("BLUE");
+        }
+        else
+        {
+          Serial.println("Fell Out");
+        }
+        dont_disp_last = NONE;
+        next_team();
+    }
     B_TIMER = millis();
   }
+  
 
   //check victory
 }
 
 void next_team()
 {
-  
-  if(team == BLUE)
+  team++;
+  if(team == NONE)
   {
     team = RED;
-    fill_solid(leds, LED_NUM, CRGB(30, 0, 0));
-    FastLED.show();
   }
-  else if(team == RED)
+  if(team == dont_disp)
   {
-    team = GREEN;
-    fill_solid(leds, LED_NUM, CRGB(0, 30, 0));
-    FastLED.show();
+    next_team();
   }
-  else if(team == GREEN)
-  {
-    team = BLUE;
-    fill_solid(leds, LED_NUM, CRGB(0, 0, 30));
-    FastLED.show();
-  }
+  reset_leds();
 }
 void cycle_leds(int index)
 {
@@ -256,7 +302,7 @@ void reset_leds()
 void disp_score(color c_team)
 {
   int score = team_score[c_team];
-  if(c_team == RED)
+  if(c_team == RED && dont_disp != RED)
   {
     //disp 1's place
     disp_num(score%10, 3);
@@ -273,7 +319,7 @@ void disp_score(color c_team)
       disp_num(1, 1);
     }
   }
-  if(c_team == GREEN)
+  if(c_team == GREEN && dont_disp != GREEN)
   {
     //disp 1's place
     disp_num(score%10, 6);
@@ -290,7 +336,7 @@ void disp_score(color c_team)
       disp_num(1, 4);
     }
   }
-  if(c_team == BLUE)
+  if(c_team == BLUE && dont_disp != BLUE)
   {
     //disp 1's place
     disp_num(score%10, 9);
