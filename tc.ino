@@ -32,6 +32,7 @@ long int B_TIMER;
 
 enum color {RED, GREEN, BLUE, NONE};
 enum color team;
+enum color winning_team;
 enum color dont_disp;
 enum color dont_disp_last;
 
@@ -145,6 +146,8 @@ void setup() {
   plus_mode = false;
   
   team = RED;
+  winning_team = NONE;
+
   dont_disp = NONE;
   dont_disp_last = NONE;
     
@@ -219,6 +222,13 @@ void loop()
   //undo (right button)
   if(digitalRead(BUT_R) == HIGH && (millis() - B_TIMER > 500))
   {
+    if(winning_team != NONE)
+    {
+      team_score[winning_team] = prev_score[team];
+      if(prev_score[winning_team] == 121) team_score[winning_team] = 120;
+      team = winning_team;
+      winning_team = NONE;
+    }
     if(team_score[team] == prev_score[team])
     {
       prev_team();
@@ -266,6 +276,15 @@ void loop()
     B_TIMER = millis();
   }
   //check victory
+  if(team_score[team] == 121 && winning_team == NONE)
+  {
+    winning_team = team;
+  }
+  if(winning_team != NONE)
+  {
+    team = winning_team;
+    reset_leds();
+  }
 }
 
 void next_team()
@@ -293,7 +312,7 @@ void cycle_leds(int index)
   int* r_value = (team == RED ? &value : &zero);
   int* g_value = (team == GREEN ? &value : &zero);
   int* b_value = (team == BLUE ? &value : &zero);
-  if(cur_dir == CW)
+  if(cur_dir == CCW)
   {
     for(int i = 0; i < LED_NUM; i++)
     {
@@ -301,7 +320,7 @@ void cycle_leds(int index)
         value /= 1.3; 
     }
   }
-  else //if CCW
+  else //if CW
   {
     for(int i = LED_NUM; i > 0; i--)
     {
