@@ -14,6 +14,8 @@ TC_V1 Schematic: https://github.com/masonbrainard/travel_cribbage/blob/main/trav
 
 TC_V1 PCB Layout: https://github.com/masonbrainard/travel_cribbage/blob/main/travelcribbage_layout.pdf
 
+The code used to program the Atmega328 is in C++ also a part of the repository. Some features include the Dial lighting up the color of the player whose turn it is and the leds within the dial turning as the score is adjusted. There are three buttons below the dial, the left button is the 2/3 player switch which will cycle between 2 players or 3 players of any two colors so long as at least one of the players scores is 0. The center button is the Plus/Minus mode toggle which on a given players turn will count from zero to add to their current score, signified by "P" or "-" in the hundreds place. Finally, the rightmost button is an undo button which will take the score back to where it started on the previous turn or back to the previous player and their previous score. 
+
 With the travel size prototype completed, I am working on a full size one!
 
 If you have any questions, please email me at masonbrainard@gmail.com
